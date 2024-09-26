@@ -4,6 +4,7 @@ from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.affinity import rotate
 import matplotlib.pyplot as plt
 from create_ import *
+import numpy as np
 
 # 创建一个图形对象，2行2列的子图布局
 fig_, axs = plt.subplots(2, 3, figsize=(24, 8))
@@ -13,32 +14,83 @@ polygon_color = "blue"
 point_size = 5
 
 
-def draw(coords, fig, color, size, label, title=None, is_view=False):
+def draw(coords, fig, color, size, label, title=None, is_view=False, is_quiver=False):
     # 可视化平面坐标
     x_coords, y_coords = zip(*coords)  # 拆分为 x 和 y 坐标
-    fig.scatter(x_coords, y_coords, c=color, marker="o", label=label, s=size)
+
+    # 使用 quiver 绘制有向线段
+    if is_quiver:
+        # 构造有向线段的起点和方向向量
+        u = np.diff(x_coords)  # x方向的变化量
+        v = np.diff(y_coords)  # y方向的变化量
+        x_start = x_coords[:-1]
+        y_start = y_coords[:-1]
+        fig.quiver(
+            x_start,
+            y_start,
+            u,
+            v,
+            angles="xy",
+            scale_units="xy",
+            scale=1,
+            color=color,
+            width=0.002,
+        )
+    else:
+        fig.scatter(x_coords, y_coords, c=color, marker="o", label=label, s=size)
+
+    # 设置标题和坐标轴
     if title:
         fig.set_title(title)
     fig.set_xlabel("X")
     fig.set_ylabel("Y")
     fig.axis("equal")
-    fig.legend()
+
+    # 设置图例
+    if label:
+        fig.legend([label])
+
+    # 设置网格
     fig.grid(True)
+
+    # 如果启用视图调整，则自动调整子图布局
     if is_view:
-        # 自动调整子图布局
         plt.tight_layout()
         plt.show()
+
+
+# def draw(coords, fig, color, size, label, title=None, is_view=False):
+#     # 可视化平面坐标
+#     x_coords, y_coords = zip(*coords)  # 拆分为 x 和 y 坐标
+#     fig.scatter(x_coords, y_coords, c=color, marker="o", label=label, s=size)
+#     if title:
+#         fig.set_title(title)
+#     fig.set_xlabel("X")
+#     fig.set_ylabel("Y")
+#     fig.axis("equal")
+#     fig.legend()
+#     fig.grid(True)
+#     if is_view:
+#         # 自动调整子图布局
+#         plt.tight_layout()
+#         plt.show()
 
 
 #############################################################
 ## 计算形心
 #############################################################
+# wgs84_coords = [
+#     (116.331475335, 35.290368739),
+#     (116.361746745, 35.294927153),
+#     (116.361263947, 35.297143999),
+#     (116.330897318, 35.292667392),
+# ]  # 点列表
 wgs84_coords = [
-    (116.331475335, 35.290368739),
-    (116.361746745, 35.294927153),
-    (116.361263947, 35.297143999),
-    (116.330897318, 35.292667392),
+    (116.338493334, 35.300982240),
+    (116.335746752, 35.297227147),
+    (116.340789305, 35.297237876),
 ]  # 点列表
+
 # 使用 shapely 创建一个多边形对象
 polygon = Polygon(wgs84_coords)
 assert polygon.is_valid, "输入的多边形不合法"  # 输入的点位没有交叉
@@ -77,7 +129,7 @@ draw(
 #############################################################
 
 # 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
-alpha = 0
+alpha = 10
 # 使用 Shapely 创建多边形对象
 polygon = Polygon(coords)  # 会自动闭合多边形
 # 使用 Shapely 的 rotate 函数进行旋转
@@ -112,8 +164,8 @@ max_x, max_y = point_np.max(axis=0)
 #############################################################
 ## 在矩形中计算出各个航点位置
 #############################################################
-point_offset = [0, 0]  # 航向偏移,旁向偏移  单位 米  正数向外，负数向内
-reduced_field_w = 50  # w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
+point_offset = [20, 0]  # 航向偏移,旁向偏移  单位 米  正数向外，负数向内
+reduced_field_w = 10  # w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
 start_dir = "right"  # 起始飞行点 是在航向的右边还是左边，默认右边
 waypoints_list = []  # 航点存储
 line_count = 0  # 记录有多少条长直航线
@@ -121,7 +173,8 @@ break_count = 0  # 超出界限
 
 # 计算出无人机飞行的最小y值和最大y值
 # 根据起始飞行点判断计算出航点位置
-start_y = min_y + reduced_field_w / 2 - point_offset[1]
+start_y = min_y + reduced_field_w / 2 - point_offset[1] - reduced_field_w
+# 减去reduced_field_w 是因为第一个点会导致y值要加上reduced_field_w
 end_y = max_y - reduced_field_w / 2 + point_offset[1]
 if start_dir != "right":  # 起始点在航向的左侧  交换起点和终点的y值
     temp_y = start_y
@@ -145,7 +198,11 @@ while True:
             break
     if now_is_start and last_is_start:  # 如果在起始边并且上一点也在起始边，说明下一点需要在终点边
         point_x = start_x
-        point_y = last_point_y
+        if start_dir == "right":
+            point_y = last_point_y + reduced_field_w
+        else:
+            point_y = last_point_y - reduced_field_w
+        last_point_y = point_y
         # 下一点需要进行切换边
         last_is_start = now_is_start
         now_is_start = False
@@ -187,11 +244,12 @@ draw(
     label="Waypoint point",
     title="Waypoint Coordinate",
     is_view=False,
+    is_quiver=True,
 )
 
 #############################################################
 ## 对航点的x坐标进行收缩修正
-## 只在修正里使用航向偏移，去除上述使用航线偏移的部分
+## TODO 只在修正里使用航向偏移，去除上述使用航线偏移的部分
 #############################################################
 # 创建多边形对象
 polygon = Polygon(point_list)
@@ -262,6 +320,7 @@ draw(
     label="Modify point",
     title="Modify Coordinate",
     is_view=False,
+    is_quiver=True,
 )
 draw(
     coords=waypoints_list,
@@ -292,6 +351,7 @@ draw(
     label="Re-rotate point",
     title="Re-rotate Coordinate",
     is_view=False,
+    is_quiver=True,
 )
 
 #############################################################
@@ -310,6 +370,7 @@ draw(
     label="Waypoints",
     title="WGS84 Coordinate",
     is_view=False,
+    is_quiver=True,
 )
 draw(
     coords=wgs84_coords,
