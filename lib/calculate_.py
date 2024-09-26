@@ -163,8 +163,9 @@ max_x, max_y = point_np.max(axis=0)
 
 #############################################################
 ## 在矩形中计算出各个航点位置
+## 旁向偏移在这里使用
 #############################################################
-point_offset = [20, 0]  # 航向偏移,旁向偏移  单位 米  正数向外，负数向内
+point_offset = [50, 20]  # 航向偏移,旁向偏移  单位 米  正数向外，负数向内
 reduced_field_w = 10  # w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
 start_dir = "right"  # 起始飞行点 是在航向的右边还是左边，默认右边
 waypoints_list = []  # 航点存储
@@ -180,9 +181,11 @@ if start_dir != "right":  # 起始点在航向的左侧  交换起点和终点�
     temp_y = start_y
     start_y = end_y
     end_y = temp_y
-# 只能通过偏移进行起点和终点的矫正，否则默认在外接矩形的边上
-start_x = min_x - point_offset[0]
-end_x = max_x + point_offset[0]
+# 航向偏移的使用在航点矫正
+# start_x = min_x - point_offset[0]
+# end_x = max_x + point_offset[0]
+start_x = min_x
+end_x = max_x
 
 # 记录当前航点的y值
 last_point_y = start_y
@@ -249,7 +252,7 @@ draw(
 
 #############################################################
 ## 对航点的x坐标进行收缩修正
-## TODO 只在修正里使用航向偏移，去除上述使用航线偏移的部分
+## 只在修正里使用航向偏移，去除上述使用航向偏移的部分
 #############################################################
 # 创建多边形对象
 polygon = Polygon(point_list)
@@ -269,8 +272,12 @@ for i in range(0, len(waypoints_list), 2):
         # 如果点在多边形外，找到线段与多边形边界的交点
         intersections = line.intersection(polygon)
         if intersections.is_empty:
-            new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
-            new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+            if len(adjusted_segments) >= 2:  # 确认不是第一条线与多边形没有交点
+                new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
+                new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+            else:  # TODO第一条线和航线没有交点
+                new_p1 = p1  # 保留原点
+                new_p2 = p2  # 保留原点
         elif isinstance(intersections, Point):
             new_p1 = intersections  # 单个交点
         elif isinstance(intersections, MultiPoint):
@@ -291,8 +298,12 @@ for i in range(0, len(waypoints_list), 2):
         # 找到线段与多边形的交点
         intersections = line.intersection(polygon)
         if intersections.is_empty:
-            new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
-            new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+            if len(adjusted_segments) >= 2:  # 确认不是第一条线与多边形没有交点
+                new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
+                new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+            else:  # 第一条线和航线没有交点
+                new_p1 = p1  # 保留原点
+                new_p2 = p2  # 保留原点
         elif isinstance(intersections, Point):
             new_p2 = intersections  # 单个交点
         elif isinstance(intersections, MultiPoint):
@@ -310,10 +321,17 @@ for i in range(0, len(waypoints_list), 2):
     # 存储调整后的线段
     adjusted_segments.append([new_p1.x, new_p1.y])
     adjusted_segments.append([new_p2.x, new_p2.y])
+# 增加航向偏移
+offset_adjusted_segments = []
+for i, (x, y) in enumerate(adjusted_segments):
+    if i % 4 == 0 or i % 4 == 3:  # 奇数点，起始点
+        offset_adjusted_segments.append((x - point_offset[0], y))
+    else:  # 偶数点,终点
+        offset_adjusted_segments.append((x + point_offset[0], y))
 
 # 可视化航点
 draw(
-    coords=adjusted_segments,
+    coords=offset_adjusted_segments,
     fig=axs[1, 0],
     color="red",
     size=point_size,
@@ -335,7 +353,7 @@ draw(
 #############################################################
 
 # 使用 Shapely 创建点位
-multi_point = MultiPoint([Point(x, y) for x, y in adjusted_segments])
+multi_point = MultiPoint([Point(x, y) for x, y in offset_adjusted_segments])
 # 使用 Shapely 的 rotate 函数进行旋转
 re_multi_point = rotate(multi_point, alpha, origin=(0, 0), use_radians=False)  # 逆时针旋转
 # 提取旋转后的点位坐标
