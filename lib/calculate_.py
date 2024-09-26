@@ -125,7 +125,7 @@ end_y = max_y - reduced_field_w / 2 + point_offset[1]
 if start_dir != "right":  # 起始点在航向的左侧  交换起点和终点的y值
     temp_y = start_y
     start_y = end_y
-    end_y = start_y
+    end_y = temp_y
 # 只能通过偏移进行起点和终点的矫正，否则默认在外接矩形的边上
 start_x = min_x - point_offset[0]
 end_x = max_x + point_offset[0]
@@ -138,7 +138,7 @@ now_is_start = True  # 判定是否在起始边
 
 # 当没有超出范围时，一直保持循环
 while True:
-    if (last_point_y > end_y) if (start_dir == "right") else (last_point_y < start_y):
+    if (last_point_y > end_y) if (start_dir == "right") else (last_point_y < end_y):
         break_count += 1
         if break_count >= 2:
             break
