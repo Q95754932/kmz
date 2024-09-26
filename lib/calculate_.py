@@ -1,15 +1,16 @@
 from shapely.geometry import Polygon
 from pyproj import CRS, Transformer
-from shapely.geometry import Polygon, Point, MultiPoint
+from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.affinity import rotate
 import matplotlib.pyplot as plt
+from create_ import *
 
 # 创建一个图形对象，2行2列的子图布局
 fig_, axs = plt.subplots(2, 3, figsize=(24, 8))
 waypoint_color = "green"
 # boundary_color = "red"
 polygon_color = "blue"
-point_size = 10
+point_size = 5
 
 
 def draw(coords, fig, color, size, label, title=None, is_view=False):
@@ -45,7 +46,7 @@ assert polygon.is_valid, "输入的多边形不合法"  # 输入的点位没有�
 centroid = polygon.centroid
 centroid_x, centroid_y = centroid.x, centroid.y
 # 输出形心的经纬度
-print(f"形心的经度: {centroid_x}, 形心的纬度: {centroid_y}")
+# print(f"形心的经度: {centroid_x}, 形心的纬度: {centroid_y}")
 
 #############################################################
 ## 转换成平面坐标
@@ -60,12 +61,12 @@ mercator = CRS(proj="tmerc", lon_0=centroid_x, lat_0=centroid_y, ellps="WGS84")
 wgs84_to_mct = Transformer.from_crs(wgs84, mercator, always_xy=True)
 # 将经纬度坐标转换为平面坐标（横轴墨卡托）
 coords = [(wgs84_to_mct.transform(point[0], point[1])) for point in wgs84_coords]
-print(f"平面坐标列表: x, y: {coords}")
+# print(f"平面坐标列表: x, y: {coords}")
 # 可视化平面坐标
 draw(
-    coords,
-    axs[0, 0],
-    polygon_color,
+    coords=coords,
+    fig=axs[0, 0],
+    color=polygon_color,
     size=point_size,
     label="MCT point",
     title="MCT Coordinate",
@@ -76,7 +77,7 @@ draw(
 #############################################################
 
 # 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
-alpha = 10
+alpha = 0
 # 使用 Shapely 创建多边形对象
 polygon = Polygon(coords)  # 会自动闭合多边形
 # 使用 Shapely 的 rotate 函数进行旋转
@@ -85,12 +86,12 @@ rotated_polygon = rotate(polygon, -alpha, origin=(0, 0), use_radians=False)  # �
 # 去除封闭多边形的最后一个重复点位
 point_list = list(rotated_polygon.exterior.coords)[:-1]
 # 输出旋转后的多边形顶点
-print(f"旋转后的多边形顶点坐标: {point_list}")  # 获取到坐标
+# print(f"旋转后的多边形顶点坐标: {point_list}")  # 获取到坐标
 # 可视化
 draw(
-    point_list,
-    axs[0, 1],
-    polygon_color,
+    coords=point_list,
+    fig=axs[0, 1],
+    color=polygon_color,
     size=point_size,
     label="Rotate point",
     title="Rotate Coordinate",
@@ -105,8 +106,8 @@ import numpy as np
 point_np = np.array(point_list, dtype=np.float64)  # n,2
 min_x, min_y = point_np.min(axis=0)
 max_x, max_y = point_np.max(axis=0)
-print(f"min x,y{min_x, min_y}")
-print(f"max x,y{max_x, max_y}")
+# print(f"min x,y{min_x, min_y}")
+# print(f"max x,y{max_x, max_y}")
 
 #############################################################
 ## 在矩形中计算出各个航点位置
@@ -175,13 +176,13 @@ while True:
         line_count += 1
     waypoints_list.append([point_x, point_y])
 
-print(f"旋转后的航点坐标：{waypoints_list}")
-print(f"长直航线的数量：{line_count}")
+# print(f"旋转后的航点坐标：{waypoints_list}")
+# print(f"长直航线的数量：{line_count}")
 # 可视化航点
 draw(
-    waypoints_list,
-    axs[0, 2],
-    waypoint_color,
+    coords=waypoints_list,
+    fig=axs[0, 2],
+    color=waypoint_color,
     size=point_size,
     label="Waypoint point",
     title="Waypoint Coordinate",
@@ -189,28 +190,104 @@ draw(
 )
 
 #############################################################
-## TODO 对航点的x坐标进行收缩修正
+## 对航点的x坐标进行收缩修正
 ## 只在修正里使用航向偏移，去除上述使用航线偏移的部分
 #############################################################
-pass
+# 创建多边形对象
+polygon = Polygon(point_list)
 
+adjusted_segments = []
+
+# 遍历每一对线段点
+for i in range(0, len(waypoints_list), 2):
+    p1 = Point(waypoints_list[i])
+    p2 = Point(waypoints_list[i + 1])
+    line = LineString([p1, p2])
+
+    # 检查点是否在多边形内
+    if polygon.contains(p1):
+        new_p1 = p1  # 保留原点
+    else:
+        # 如果点在多边形外，找到线段与多边形边界的交点
+        intersections = line.intersection(polygon)
+        if intersections.is_empty:
+            new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
+            new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+        elif isinstance(intersections, Point):
+            new_p1 = intersections  # 单个交点
+        elif isinstance(intersections, MultiPoint):
+            # 多个交点时，选择与 p1 最近的点
+            new_p1 = min(intersections, key=lambda x: p1.distance(x))
+        elif isinstance(intersections, LineString):
+            # 如果返回的是线段（LineString），取最近的端点
+            new_p1 = min(
+                [Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p1.distance(x)
+            )
+        else:
+            print(f"修正航点时出错，取消原航修正！")
+            new_p1 = p1  # 保留原点
+
+    if polygon.contains(p2):
+        new_p2 = p2  # 保留原点
+    else:
+        # 找到线段与多边形的交点
+        intersections = line.intersection(polygon)
+        if intersections.is_empty:
+            new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
+            new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
+        elif isinstance(intersections, Point):
+            new_p2 = intersections  # 单个交点
+        elif isinstance(intersections, MultiPoint):
+            # 多个交点时，选择与 p2 最近的点
+            new_p2 = min(intersections, key=lambda x: p2.distance(x))
+        elif isinstance(intersections, LineString):
+            # 如果返回的是线段，取最近的端点
+            new_p2 = min(
+                [Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p2.distance(x)
+            )
+        else:
+            print(f"修正航点时出错，取消原航修正！")
+            new_p2 = p2  # 保留原点
+
+    # 存储调整后的线段
+    adjusted_segments.append([new_p1.x, new_p1.y])
+    adjusted_segments.append([new_p2.x, new_p2.y])
+
+# 可视化航点
+draw(
+    coords=adjusted_segments,
+    fig=axs[1, 0],
+    color="red",
+    size=point_size,
+    label="Modify point",
+    title="Modify Coordinate",
+    is_view=False,
+)
+draw(
+    coords=waypoints_list,
+    fig=axs[1, 0],
+    color=waypoint_color,
+    size=point_size,
+    label="Waypoint point",
+    is_view=False,
+)
 #############################################################
 ## 将所有航点旋转回原平面坐标系
 #############################################################
 
 # 使用 Shapely 创建点位
-multi_point = MultiPoint([Point(x, y) for x, y in waypoints_list])
+multi_point = MultiPoint([Point(x, y) for x, y in adjusted_segments])
 # 使用 Shapely 的 rotate 函数进行旋转
 re_multi_point = rotate(multi_point, alpha, origin=(0, 0), use_radians=False)  # 逆时针旋转
 # 提取旋转后的点位坐标
 re_points = [(point.x, point.y) for point in re_multi_point.geoms]
 # 输出旋转后的多边形顶点
-print(f"还原后的航点位坐标: {re_points}")  # 获取到坐标
+# print(f"还原后的航点位坐标: {re_points}")  # 获取到坐标
 # 可视化航点
 draw(
-    re_points,
-    axs[1, 1],
-    waypoint_color,
+    coords=re_points,
+    fig=axs[1, 1],
+    color=waypoint_color,
     size=point_size,
     label="Re-rotate point",
     title="Re-rotate Coordinate",
@@ -223,21 +300,21 @@ draw(
 
 mct_to_wgs84 = Transformer.from_crs(mercator, wgs84, always_xy=True)
 wgs84_waypoints = [(mct_to_wgs84.transform(x, y)) for x, y in re_points]
-print(f"航点的WGS84坐标: {wgs84_waypoints}")
+# print(f"航点的WGS84坐标: {wgs84_waypoints}")
 # 可视化航点
 draw(
-    wgs84_waypoints,
-    axs[1, 2],
-    waypoint_color,
+    coords=wgs84_waypoints,
+    fig=axs[1, 2],
+    color=waypoint_color,
     size=point_size,
     label="Waypoints",
     title="WGS84 Coordinate",
     is_view=False,
 )
 draw(
-    wgs84_coords,
-    axs[1, 2],
-    polygon_color,
+    coords=wgs84_coords,
+    fig=axs[1, 2],
+    color=polygon_color,
     size=point_size,
     label="Polygon points",
     is_view=True,
@@ -247,4 +324,9 @@ draw(
 #############################################################
 ## 生成kmz文件
 #############################################################
-pass
+# takeoff_height = 15  # 起飞高度
+# global_height = 20  # 飞行高度
+# flight_speed = 3  # 飞行速度
+
+# kmz = KmzCreator(takeoff_height, global_height, flight_speed, wgs84_waypoints)
+# kmz.create("output/file.kmz", True)
