@@ -59,23 +59,6 @@ def draw(coords, fig, color, size, label, title=None, is_view=False, is_quiver=F
         plt.show()
 
 
-# def draw(coords, fig, color, size, label, title=None, is_view=False):
-#     # 可视化平面坐标
-#     x_coords, y_coords = zip(*coords)  # 拆分为 x 和 y 坐标
-#     fig.scatter(x_coords, y_coords, c=color, marker="o", label=label, s=size)
-#     if title:
-#         fig.set_title(title)
-#     fig.set_xlabel("X")
-#     fig.set_ylabel("Y")
-#     fig.axis("equal")
-#     fig.legend()
-#     fig.grid(True)
-#     if is_view:
-#         # 自动调整子图布局
-#         plt.tight_layout()
-#         plt.show()
-
-
 #############################################################
 ## 计算形心
 #############################################################
@@ -89,7 +72,7 @@ wgs84_coords = [
     (116.338493334, 35.300982240),
     (116.335746752, 35.297227147),
     (116.340789305, 35.297237876),
-]  # 点列表
+]  # TODO 点列表
 
 # 使用 shapely 创建一个多边形对象
 polygon = Polygon(wgs84_coords)
@@ -128,8 +111,8 @@ draw(
 ## 构建平面多边形，进行旋转
 #############################################################
 
-# 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
-alpha = 10
+# TODO 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
+alpha = 20
 # 使用 Shapely 创建多边形对象
 polygon = Polygon(coords)  # 会自动闭合多边形
 # 使用 Shapely 的 rotate 函数进行旋转
@@ -165,25 +148,24 @@ max_x, max_y = point_np.max(axis=0)
 ## 在矩形中计算出各个航点位置
 ## 旁向偏移在这里使用
 #############################################################
-point_offset = [50, 20]  # 航向偏移,旁向偏移  单位 米  正数向外，负数向内
-reduced_field_w = 10  # w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
-start_dir = "right"  # 起始飞行点 是在航向的右边还是左边，默认右边
+heading_offset = 0  # TODO航向偏移, 单位 米  正数向外，负数向内
+reduced_field_w = 10  # TODO w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
+start_dir = "right"  # TODO 起始飞行点 是在航向的右边还是左边，默认右边
+
 waypoints_list = []  # 航点存储
 line_count = 0  # 记录有多少条长直航线
-break_count = 0  # 超出界限
+break_count = 0  # 超出界限两次跳出循环
 
 # 计算出无人机飞行的最小y值和最大y值
 # 根据起始飞行点判断计算出航点位置
-start_y = min_y + reduced_field_w / 2 - point_offset[1] - reduced_field_w
+start_y = min_y + reduced_field_w / 2 - reduced_field_w
 # 减去reduced_field_w 是因为第一个点会导致y值要加上reduced_field_w
-end_y = max_y - reduced_field_w / 2 + point_offset[1]
+end_y = max_y - reduced_field_w / 2
 if start_dir != "right":  # 起始点在航向的左侧  交换起点和终点的y值
     temp_y = start_y
     start_y = end_y
     end_y = temp_y
-# 航向偏移的使用在航点矫正
-# start_x = min_x - point_offset[0]
-# end_x = max_x + point_offset[0]
+
 start_x = min_x
 end_x = max_x
 
@@ -258,76 +240,59 @@ draw(
 polygon = Polygon(point_list)
 
 adjusted_segments = []
+miss_line = 0  # 有几条起始线和多边形没有交点
+first_inter_line = None  # 第几条航线开始与多边形相交
 
-# 遍历每一对线段点
+# 遍历每一各航线，收缩航线
 for i in range(0, len(waypoints_list), 2):
     p1 = Point(waypoints_list[i])
     p2 = Point(waypoints_list[i + 1])
     line = LineString([p1, p2])
 
-    # 检查点是否在多边形内
-    if polygon.contains(p1):
-        new_p1 = p1  # 保留原点
-    else:
-        # 如果点在多边形外，找到线段与多边形边界的交点
-        intersections = line.intersection(polygon)
-        if intersections.is_empty:
-            if len(adjusted_segments) >= 2:  # 确认不是第一条线与多边形没有交点
-                new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
-                new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
-            else:  # TODO第一条线和航线没有交点
-                new_p1 = p1  # 保留原点
-                new_p2 = p2  # 保留原点
-        elif isinstance(intersections, Point):
-            new_p1 = intersections  # 单个交点
-        elif isinstance(intersections, MultiPoint):
-            # 多个交点时，选择与 p1 最近的点
-            new_p1 = min(intersections, key=lambda x: p1.distance(x))
-        elif isinstance(intersections, LineString):
-            # 如果返回的是线段（LineString），取最近的端点
-            new_p1 = min(
-                [Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p1.distance(x)
-            )
-        else:
-            print(f"修正航点时出错，取消原航修正！")
-            new_p1 = p1  # 保留原点
+    intersections = line.intersection(polygon)
+    if len(intersections.coords) == 2:
+        new_p1 = min([Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p1.distance(x))
+        new_p2 = min([Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p2.distance(x))
+        if first_inter_line is None:
+            first_inter_line = i // 2  # 是个整数
+    else:  # 没有交点或者只有一个交点，此时应该在边界
+        if first_inter_line is None:  # 是首边界
+            miss_line += 1  # 记录
+            new_p1 = p1  # 使用原来的点位先进行占位
+            new_p2 = p2
+        else:  # 是尾边界,直接复制上一点的值
+            new_p1 = Point(adjusted_segments[-2])
+            new_p2 = Point(adjusted_segments[-1])
 
-    if polygon.contains(p2):
-        new_p2 = p2  # 保留原点
-    else:
-        # 找到线段与多边形的交点
-        intersections = line.intersection(polygon)
-        if intersections.is_empty:
-            if len(adjusted_segments) >= 2:  # 确认不是第一条线与多边形没有交点
-                new_p1 = Point(adjusted_segments[-2][0], p1.y)  # 采用上一点的值
-                new_p2 = Point(adjusted_segments[-1][0], p2.y)  # 采用上一点的值
-            else:  # 第一条线和航线没有交点
-                new_p1 = p1  # 保留原点
-                new_p2 = p2  # 保留原点
-        elif isinstance(intersections, Point):
-            new_p2 = intersections  # 单个交点
-        elif isinstance(intersections, MultiPoint):
-            # 多个交点时，选择与 p2 最近的点
-            new_p2 = min(intersections, key=lambda x: p2.distance(x))
-        elif isinstance(intersections, LineString):
-            # 如果返回的是线段，取最近的端点
-            new_p2 = min(
-                [Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p2.distance(x)
-            )
-        else:
-            print(f"修正航点时出错，取消原航修正！")
-            new_p2 = p2  # 保留原点
-
-    # 存储调整后的线段
     adjusted_segments.append([new_p1.x, new_p1.y])
     adjusted_segments.append([new_p2.x, new_p2.y])
+
+# 更正首边界无交点的航线,只更改X,不更改Y
+for i in range(miss_line):
+    if i % 2 == first_inter_line % 2:  # 当前的线段和交线的方向相同
+        adjusted_segments[2 * i][0] = adjusted_segments[2 * first_inter_line][0]
+        adjusted_segments[2 * i + 1][0] = adjusted_segments[2 * first_inter_line + 1][0]
+    else:  # 当前的线段和交线的方向不同
+        adjusted_segments[2 * i][0] = adjusted_segments[2 * first_inter_line + 1][0]
+        adjusted_segments[2 * i + 1][0] = adjusted_segments[2 * first_inter_line][0]
+
+
 # 增加航向偏移
 offset_adjusted_segments = []
-for i, (x, y) in enumerate(adjusted_segments):
-    if i % 4 == 0 or i % 4 == 3:  # 奇数点，起始点
-        offset_adjusted_segments.append((x - point_offset[0], y))
-    else:  # 偶数点,终点
-        offset_adjusted_segments.append((x + point_offset[0], y))
+
+for i in range(0, len(adjusted_segments), 2):  # 步长为2
+    if i % 4 == 0:  # 第一点是起始点,第二点是终止点
+        point1 = (adjusted_segments[i][0] - heading_offset, adjusted_segments[i][1])
+        point2 = (adjusted_segments[i + 1][0] + heading_offset, adjusted_segments[i + 1][1])
+        if point2[0] - point1[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
+            continue
+    else:  # 第一点是终止点,第二点是起始点
+        point1 = (adjusted_segments[i][0] + heading_offset, adjusted_segments[i][1])
+        point2 = (adjusted_segments[i + 1][0] - heading_offset, adjusted_segments[i + 1][1])
+        if point1[0] - point2[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
+            continue
+    offset_adjusted_segments.append(point1)
+    offset_adjusted_segments.append(point2)
 
 # 可视化航点
 draw(
