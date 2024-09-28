@@ -20,8 +20,8 @@ wgs84_coords = [
 takeoff_height = 15  # 起飞高度---单位: 米
 global_height = 20  # 航线高度---单位: 米
 flight_speed = 3  # 飞行速度---单位: 米/秒
-alpha = 70  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
-heading_offset = 0  # 航向偏移---正数向外,负数向内---单位 :米
+alpha = 50  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+# heading_offset = 0  # 航向偏移---正数向外,负数向内---单位 :米
 camera_HFOV = 52.8  # 相机的水平FOV---单位: 度
 camera_VFOV = 40.9  # 相机的竖直FOV---单位: 度
 side_overlap_ratio = 15  # 单侧旁向重叠率---单位: 百分比
@@ -209,8 +209,6 @@ while True:
 polygon = Polygon(point_list)
 
 adjusted_segments = []
-miss_line = 0  # 有几条起始线和多边形没有交点
-first_inter_line = None  # 第几条航线开始与多边形相交
 
 # 遍历每一各航线，收缩航线
 for i in range(0, len(waypoints_list), 2):
@@ -219,55 +217,41 @@ for i in range(0, len(waypoints_list), 2):
     line = LineString([p1, p2])
 
     intersections = line.intersection(polygon)
-    if len(intersections.coords) == 2:
+    # 相交、相离、包含返回line类型，相切返回点类型
+    # 相交和包含是一样的，都返回端点坐标，相离返回坐标数为0
+    if len(intersections.coords) >= 2 and isinstance(intersections, LineString):  # 相交
         new_p1 = min([Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p1.distance(x))
         new_p2 = min([Point(intersections.coords[0]), Point(intersections.coords[-1])], key=lambda x: p2.distance(x))
-        if first_inter_line is None:
-            first_inter_line = i // 2  # 是个整数
-    else:  # 没有交点或者只有一个交点，此时应该在边界
-        if first_inter_line is None:  # 是首边界
-            miss_line += 1  # 记录
-            new_p1 = p1  # 使用原来的点位先进行占位
-            new_p2 = p2
-        else:  # 是尾边界,直接复制上一点的值
-            new_p1 = Point(adjusted_segments[-2])
-            new_p2 = Point(adjusted_segments[-1])
+    else:  # 相切或者相离，此时必读在尾边界，首边界一定相交
+        new_p1 = Point(adjusted_segments[-1][0], waypoints_list[i][1])
+        new_p2 = Point(adjusted_segments[-2][0], waypoints_list[i][1])
 
     adjusted_segments.append([new_p1.x, new_p1.y])
     adjusted_segments.append([new_p2.x, new_p2.y])
 
-# 更正首边界无交点的航线,只更改X,不更改Y
-for i in range(miss_line):
-    if i % 2 == first_inter_line % 2:  # 当前的线段和交线的方向相同
-        adjusted_segments[2 * i][0] = adjusted_segments[2 * first_inter_line][0]
-        adjusted_segments[2 * i + 1][0] = adjusted_segments[2 * first_inter_line + 1][0]
-    else:  # 当前的线段和交线的方向不同
-        adjusted_segments[2 * i][0] = adjusted_segments[2 * first_inter_line + 1][0]
-        adjusted_segments[2 * i + 1][0] = adjusted_segments[2 * first_inter_line][0]
+# # 增加航向偏移  其实有点多余
+# offset_adjusted_segments = []
 
-# 增加航向偏移
-offset_adjusted_segments = []
-
-for i in range(0, len(adjusted_segments), 2):  # 步长为2
-    if i % 4 == 0:  # 第一点是起始点,第二点是终止点
-        point1 = (adjusted_segments[i][0] - heading_offset, adjusted_segments[i][1])
-        point2 = (adjusted_segments[i + 1][0] + heading_offset, adjusted_segments[i + 1][1])
-        if point2[0] - point1[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
-            continue
-    else:  # 第一点是终止点,第二点是起始点
-        point1 = (adjusted_segments[i][0] + heading_offset, adjusted_segments[i][1])
-        point2 = (adjusted_segments[i + 1][0] - heading_offset, adjusted_segments[i + 1][1])
-        if point1[0] - point2[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
-            continue
-    offset_adjusted_segments.append(point1)
-    offset_adjusted_segments.append(point2)
+# for i in range(0, len(adjusted_segments), 2):  # 步长为2
+#     if i % 4 == 0:  # 第一点是起始点,第二点是终止点
+#         point1 = (adjusted_segments[i][0] - heading_offset, adjusted_segments[i][1])
+#         point2 = (adjusted_segments[i + 1][0] + heading_offset, adjusted_segments[i + 1][1])
+#         if point2[0] - point1[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
+#             continue
+#     else:  # 第一点是终止点,第二点是起始点
+#         point1 = (adjusted_segments[i][0] + heading_offset, adjusted_segments[i][1])
+#         point2 = (adjusted_segments[i + 1][0] - heading_offset, adjusted_segments[i + 1][1])
+#         if point1[0] - point2[0] < 0:  # 如果偏移完后顺序颠倒，则直接省略该点
+#             continue
+#     offset_adjusted_segments.append(point1)
+#     offset_adjusted_segments.append(point2)
 
 #############################################################
 ## 将所有航点旋转回原平面坐标系
 #############################################################
 
 # 使用 Shapely 创建点位
-multi_point = MultiPoint([Point(x, y) for x, y in offset_adjusted_segments])
+multi_point = MultiPoint([Point(x, y) for x, y in adjusted_segments])
 # 使用 Shapely 的 rotate 函数进行旋转
 re_multi_point = rotate(multi_point, alpha, origin=(0, 0), use_radians=False)  # 逆时针旋转
 # 提取旋转后的点位坐标

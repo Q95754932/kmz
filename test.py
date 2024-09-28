@@ -1,7 +1,7 @@
 # from shapely.geometry import Point, LineString, Polygon
 
-# point_a = Point([-1, 0])
-# point_b = Point([0, 0])
+# point_a = Point([2, 1])
+# point_b = Point([2, -1])
 
 # polyg = Polygon(
 #     [
@@ -16,7 +16,7 @@
 # line = LineString([point_a, point_b])
 
 # intersections = line.intersection(polyg)
-
+# print(f"{type(intersections)=}")
 # print(f"{len(intersections.coords)=}")
 # print(f"{intersections.coords[0]=}")
 # print(f"{intersections.coords[1]=}")
