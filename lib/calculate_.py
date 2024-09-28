@@ -1,3 +1,4 @@
+from matplotlib.lines import Line2D
 from shapely.geometry import Polygon
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, Point, MultiPoint, LineString
@@ -6,78 +7,81 @@ import matplotlib.pyplot as plt
 from create_ import *
 import numpy as np
 
-takeoff_height = 15  # TODO 起飞高度
-global_height = 20  # TODO 飞行高度
-flight_speed = 3  # TODO 飞行速度
-
-# 创建一个图形对象，2行2列的子图布局
-fig_, axs = plt.subplots(2, 3, figsize=(24, 8))
-waypoint_color = "green"
-# boundary_color = "red"
-polygon_color = "blue"
-point_size = 5
-
-
-def draw(coords, fig, color, size, label, title=None, is_view=False, is_quiver=False):
-    # 可视化平面坐标
-    x_coords, y_coords = zip(*coords)  # 拆分为 x 和 y 坐标
-
-    # 使用 quiver 绘制有向线段
-    if is_quiver:
-        # 构造有向线段的起点和方向向量
-        u = np.diff(x_coords)  # x方向的变化量
-        v = np.diff(y_coords)  # y方向的变化量
-        x_start = x_coords[:-1]
-        y_start = y_coords[:-1]
-        fig.quiver(
-            x_start,
-            y_start,
-            u,
-            v,
-            angles="xy",
-            scale_units="xy",
-            scale=1,
-            color=color,
-            width=0.002,
-        )
-    else:
-        fig.scatter(x_coords, y_coords, c=color, marker="o", label=label, s=size)
-
-    # 设置标题和坐标轴
-    if title:
-        fig.set_title(title)
-    fig.set_xlabel("X")
-    fig.set_ylabel("Y")
-    fig.axis("equal")
-
-    # 设置图例
-    if label:
-        fig.legend([label])
-
-    # 设置网格
-    fig.grid(True)
-
-    # 如果启用视图调整，则自动调整子图布局
-    if is_view:
-        plt.tight_layout()
-        plt.show()
-
-
 #############################################################
-## 计算形心
+## 定义参数
 #############################################################
-# wgs84_coords = [
-#     (116.331475335, 35.290368739),
-#     (116.361758816, 35.294921789),
-#     (116.361194211, 35.297553036),
-#     (116.330874520, 35.293036196),
-# ]  # TODO 点列表
+
 wgs84_coords = [
     (116.331475335, 35.290368739),
     (116.361758816, 35.294921789),
     (116.361194211, 35.297553036),
     (116.330874520, 35.293036196),
-]  # TODO 点列表
+]  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
+takeoff_height = 15  # 起飞高度---单位: 米
+global_height = 20  # 航线高度---单位: 米
+flight_speed = 3  # 飞行速度---单位: 米/秒
+alpha = 70  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+heading_offset = 0  # 航向偏移---正数向外,负数向内---单位 :米
+camera_HFOV = 52.8  # 相机的水平FOV---单位: 度
+camera_VFOV = 40.9  # 相机的竖直FOV---单位: 度
+side_overlap_ratio = 15  # 单侧旁向重叠率---单位: 百分比
+heading_overlap_ratio = 15  # 单侧航向重叠率---单位: 百分比
+start_dir = "right"  # 起始飞行点---是在航向的右边还是左边，默认右边
+camera_shoot_time = 1  # 相机拍照的间隔时间---单位: 秒
+
+#############################################################
+## 定义可视化函数
+#############################################################
+
+
+# 航点列表和边界点列表（经纬度坐标）
+def draw(
+    way_points,
+    polygon_points,
+    wp_label="Waypoints",
+    plg_label="Polygon points",
+    wp_color="green",
+    plg_color="red",
+    wp_size=0.001,
+    plg_size=50,
+    title="WGS84 Coordinate",
+):
+    # 创建一个图形对象
+    fig, axs = plt.subplots(1, 1, figsize=(24, 10))
+    # 绘制航线
+    x_coords, y_coords = zip(*way_points)  # 拆分为 x 和 y 坐标
+    u = np.diff(x_coords)  # x方向的变化量
+    v = np.diff(y_coords)  # y方向的变化量
+    x_start = x_coords[:-1]
+    y_start = y_coords[:-1]
+    axs.quiver(
+        x_start, y_start, u, v, angles="xy", scale_units="xy", scale=1, color=wp_color, width=wp_size  # 默认是0.005
+    )
+    # 绘制多边形
+    x_coords, y_coords = zip(*polygon_points)  # 拆分为 x 和 y 坐标
+    axs.scatter(x_coords, y_coords, c=plg_color, marker="o", label=plg_label, s=plg_size)
+    # 手动创建图例项
+    legend_elements = [
+        Line2D([0], [0], color=wp_color, lw=2, label=wp_label),  # 航点（quiver）
+        Line2D([0], [0], marker="o", color="w", markerfacecolor=plg_color, markersize=10, label=plg_label),  # 多边形点
+    ]
+    # 添加图例到图形中
+    axs.legend(handles=legend_elements)
+    # 设置网格
+    axs.grid(True)
+    # 设置横纵坐标
+    axs.set_title(title)
+    axs.set_xlabel("Longitude")
+    axs.set_ylabel("Latitude")
+    axs.axis("equal")
+    # 显示
+    plt.tight_layout()
+    plt.show()
+
+
+#############################################################
+## 计算形心
+#############################################################
 
 # 使用 shapely 创建一个多边形对象
 polygon = Polygon(wgs84_coords)
@@ -85,8 +89,6 @@ assert polygon.is_valid, "输入的多边形不合法"  # 输入的点位没有�
 # 计算多边形的形心
 centroid = polygon.centroid
 centroid_x, centroid_y = centroid.x, centroid.y
-# 输出形心的经纬度
-# print(f"形心的经度: {centroid_x}, 形心的纬度: {centroid_y}")
 
 #############################################################
 ## 转换成平面坐标
@@ -101,23 +103,11 @@ mercator = CRS(proj="tmerc", lon_0=centroid_x, lat_0=centroid_y, ellps="WGS84")
 wgs84_to_mct = Transformer.from_crs(wgs84, mercator, always_xy=True)
 # 将经纬度坐标转换为平面坐标（横轴墨卡托）
 coords = [(wgs84_to_mct.transform(point[0], point[1])) for point in wgs84_coords]
-# print(f"平面坐标列表: x, y: {coords}")
-# 可视化平面坐标
-draw(
-    coords=coords,
-    fig=axs[0, 0],
-    color=polygon_color,
-    size=point_size,
-    label="MCT point",
-    title="MCT Coordinate",
-    is_view=False,
-)
+
 #############################################################
 ## 构建平面多边形，进行旋转
 #############################################################
 
-# TODO 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
-alpha = 0
 # 使用 Shapely 创建多边形对象
 polygon = Polygon(coords)  # 会自动闭合多边形
 # 使用 Shapely 的 rotate 函数进行旋转
@@ -125,55 +115,31 @@ rotated_polygon = rotate(polygon, -alpha, origin=(0, 0), use_radians=False)  # �
 
 # 去除封闭多边形的最后一个重复点位
 point_list = list(rotated_polygon.exterior.coords)[:-1]
-# 输出旋转后的多边形顶点
-# print(f"旋转后的多边形顶点坐标: {point_list}")  # 获取到坐标
-# 可视化
-draw(
-    coords=point_list,
-    fig=axs[0, 1],
-    color=polygon_color,
-    size=point_size,
-    label="Rotate point",
-    title="Rotate Coordinate",
-    is_view=False,
-)
 
 #############################################################
 ## 找到最小的外接矩形
 #############################################################
+
 import numpy as np
 
 point_np = np.array(point_list, dtype=np.float64)  # n,2
 min_x, min_y = point_np.min(axis=0)
 max_x, max_y = point_np.max(axis=0)
-# print(f"min x,y{min_x, min_y}")
-# print(f"max x,y{max_x, max_y}")
 
 #############################################################
 ## 在矩形中计算出各个航点位置
-## 旁向偏移在这里使用
 #############################################################
-heading_offset = 0  # TODO航向偏移, 单位 米  正数向外，负数向内
-camera_HFOV = 52.8  # 给定相机的FOV，理想的重叠率，计算出相机缩减后的旁向视场范围 单位 度
-camera_VFOV = 40.9
-side_overlap_ratio = 15  # TODO 单侧旁向重叠率，单位 百分比
-heading_overlap_ratio = 15  # TODO 单侧航向重叠率，单位 百分比
-camera_shoot_time = 1  # 相机拍照的间隔时间 单位 秒
 
-# 相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
+# 相机缩减后的旁向视场范围 需要根据旁向重叠率计算出来
 reduced_field_w = global_height * np.tan(camera_HFOV / 2 / 180 * np.pi) * 2 * (1 - side_overlap_ratio / 100 * 2)
 recmd_fight_speed = (
     global_height * np.tan(camera_VFOV / 2 / 180 * np.pi) * (2 - heading_overlap_ratio / 100 * 2) / camera_shoot_time
 )  # 保证航向重叠率不低于指定值的 建议最大飞行速度，单位 米/秒
-print(f"建议最大飞行速度：{recmd_fight_speed} 米/秒")
-
-start_dir = "right"  # TODO 起始飞行点 是在航向的右边还是左边，默认右边
 
 waypoints_list = []  # 航点存储
 line_count = 0  # 记录有多少条长直航线
 break_count = 0  # 超出界限两次跳出循环
 
-# 计算出无人机飞行的最小y值和最大y值
 # 根据起始飞行点判断计算出航点位置
 start_y = min_y + reduced_field_w / 2 - reduced_field_w
 # 减去reduced_field_w 是因为第一个点会导致y值要加上reduced_field_w
@@ -235,24 +201,10 @@ while True:
         line_count += 1
     waypoints_list.append([point_x, point_y])
 
-# print(f"旋转后的航点坐标：{waypoints_list}")
-# print(f"长直航线的数量：{line_count}")
-# 可视化航点
-draw(
-    coords=waypoints_list,
-    fig=axs[0, 2],
-    color=waypoint_color,
-    size=point_size,
-    label="Waypoint point",
-    title="Waypoint Coordinate",
-    is_view=False,
-    is_quiver=True,
-)
-
 #############################################################
 ## 对航点的x坐标进行收缩修正
-## 只在修正里使用航向偏移，去除上述使用航向偏移的部分
 #############################################################
+
 # 创建多边形对象
 polygon = Polygon(point_list)
 
@@ -293,7 +245,6 @@ for i in range(miss_line):
         adjusted_segments[2 * i][0] = adjusted_segments[2 * first_inter_line + 1][0]
         adjusted_segments[2 * i + 1][0] = adjusted_segments[2 * first_inter_line][0]
 
-
 # 增加航向偏移
 offset_adjusted_segments = []
 
@@ -311,25 +262,6 @@ for i in range(0, len(adjusted_segments), 2):  # 步长为2
     offset_adjusted_segments.append(point1)
     offset_adjusted_segments.append(point2)
 
-# 可视化航点
-draw(
-    coords=offset_adjusted_segments,
-    fig=axs[1, 0],
-    color="red",
-    size=point_size,
-    label="Modify point",
-    title="Modify Coordinate",
-    is_view=False,
-    is_quiver=True,
-)
-draw(
-    coords=waypoints_list,
-    fig=axs[1, 0],
-    color=waypoint_color,
-    size=point_size,
-    label="Waypoint point",
-    is_view=False,
-)
 #############################################################
 ## 将所有航点旋转回原平面坐标系
 #############################################################
@@ -340,19 +272,6 @@ multi_point = MultiPoint([Point(x, y) for x, y in offset_adjusted_segments])
 re_multi_point = rotate(multi_point, alpha, origin=(0, 0), use_radians=False)  # 逆时针旋转
 # 提取旋转后的点位坐标
 re_points = [(point.x, point.y) for point in re_multi_point.geoms]
-# 输出旋转后的多边形顶点
-# print(f"还原后的航点位坐标: {re_points}")  # 获取到坐标
-# 可视化航点
-draw(
-    coords=re_points,
-    fig=axs[1, 1],
-    color=waypoint_color,
-    size=point_size,
-    label="Re-rotate point",
-    title="Re-rotate Coordinate",
-    is_view=False,
-    is_quiver=True,
-)
 
 #############################################################
 ## 转换成WGS84坐标
@@ -360,31 +279,15 @@ draw(
 
 mct_to_wgs84 = Transformer.from_crs(mercator, wgs84, always_xy=True)
 wgs84_waypoints = [(mct_to_wgs84.transform(x, y)) for x, y in re_points]
-# print(f"航点的WGS84坐标: {wgs84_waypoints}")
-# 可视化航点
-draw(
-    coords=wgs84_waypoints,
-    fig=axs[1, 2],
-    color=waypoint_color,
-    size=point_size,
-    label="Waypoints",
-    title="WGS84 Coordinate",
-    is_view=False,
-    is_quiver=True,
-)
-draw(
-    coords=wgs84_coords,
-    fig=axs[1, 2],
-    color=polygon_color,
-    size=point_size,
-    label="Polygon points",
-    is_view=True,
-)
 
+# 可视化
+draw(wgs84_waypoints, wgs84_coords)
 
 #############################################################
 ## 生成kmz文件
 #############################################################
 
-# kmz = KmzCreator(takeoff_height, global_height, flight_speed, wgs84_waypoints)
-# kmz.create("output/file.kmz", True)
+kmz = KmzCreator(takeoff_height, global_height, flight_speed, wgs84_waypoints)
+kmz.create("output/file.kmz", True)
+
+print(f"建议最大飞行速度：{recmd_fight_speed:.2f} 米/秒")
