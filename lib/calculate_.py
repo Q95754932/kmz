@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 from create_ import *
 import numpy as np
 
+takeoff_height = 15  # TODO 起飞高度
+global_height = 20  # TODO 飞行高度
+flight_speed = 3  # TODO 飞行速度
+
 # 创建一个图形对象，2行2列的子图布局
 fig_, axs = plt.subplots(2, 3, figsize=(24, 8))
 waypoint_color = "green"
@@ -64,14 +68,15 @@ def draw(coords, fig, color, size, label, title=None, is_view=False, is_quiver=F
 #############################################################
 # wgs84_coords = [
 #     (116.331475335, 35.290368739),
-#     (116.361746745, 35.294927153),
-#     (116.361263947, 35.297143999),
-#     (116.330897318, 35.292667392),
-# ]  # 点列表
+#     (116.361758816, 35.294921789),
+#     (116.361194211, 35.297553036),
+#     (116.330874520, 35.293036196),
+# ]  # TODO 点列表
 wgs84_coords = [
-    (116.338493334, 35.300982240),
-    (116.335746752, 35.297227147),
-    (116.340789305, 35.297237876),
+    (116.331475335, 35.290368739),
+    (116.361758816, 35.294921789),
+    (116.361194211, 35.297553036),
+    (116.330874520, 35.293036196),
 ]  # TODO 点列表
 
 # 使用 shapely 创建一个多边形对象
@@ -112,7 +117,7 @@ draw(
 #############################################################
 
 # TODO 定义角度方向  x轴正方向为0度，逆时针增加 单位度  范围从0-360
-alpha = 20
+alpha = 0
 # 使用 Shapely 创建多边形对象
 polygon = Polygon(coords)  # 会自动闭合多边形
 # 使用 Shapely 的 rotate 函数进行旋转
@@ -149,7 +154,19 @@ max_x, max_y = point_np.max(axis=0)
 ## 旁向偏移在这里使用
 #############################################################
 heading_offset = 0  # TODO航向偏移, 单位 米  正数向外，负数向内
-reduced_field_w = 10  # TODO w  相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
+camera_HFOV = 52.8  # 给定相机的FOV，理想的重叠率，计算出相机缩减后的旁向视场范围 单位 度
+camera_VFOV = 40.9
+side_overlap_ratio = 15  # TODO 单侧旁向重叠率，单位 百分比
+heading_overlap_ratio = 15  # TODO 单侧航向重叠率，单位 百分比
+camera_shoot_time = 1  # 相机拍照的间隔时间 单位 秒
+
+# 相机缩减后的旁向视场范围 单位米   需要根据旁向重叠率计算出来
+reduced_field_w = global_height * np.tan(camera_HFOV / 2 / 180 * np.pi) * 2 * (1 - side_overlap_ratio / 100 * 2)
+recmd_fight_speed = (
+    global_height * np.tan(camera_VFOV / 2 / 180 * np.pi) * (2 - heading_overlap_ratio / 100 * 2) / camera_shoot_time
+)  # 保证航向重叠率不低于指定值的 建议最大飞行速度，单位 米/秒
+print(f"建议最大飞行速度：{recmd_fight_speed} 米/秒")
+
 start_dir = "right"  # TODO 起始飞行点 是在航向的右边还是左边，默认右边
 
 waypoints_list = []  # 航点存储
@@ -368,9 +385,6 @@ draw(
 #############################################################
 ## 生成kmz文件
 #############################################################
-# takeoff_height = 15  # 起飞高度
-# global_height = 20  # 飞行高度
-# flight_speed = 3  # 飞行速度
 
 # kmz = KmzCreator(takeoff_height, global_height, flight_speed, wgs84_waypoints)
 # kmz.create("output/file.kmz", True)

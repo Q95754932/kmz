@@ -22,3 +22,6 @@
 # print(f"{intersections.coords[1]=}")
 # print(f"{intersections.coords[2]=}")
 ############################################################
+import numpy as np
+
+print(f"{np.tan(45/180*np.pi)=}")
