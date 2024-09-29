@@ -21,6 +21,6 @@ if __name__ == "__main__":
         heading_overlap_ratio=30,  # 单侧航向重叠率---单位: 百分比
         start_dir="right",  # 起始飞行点---是在航向的右边还是左边，默认右边
         camera_shoot_time=1,  # 相机拍照的间隔时间---单位: 秒
-        output_path="output/file.kmz",  # 文件输出路径
+        output_path="output/gcj02.kmz",  # 文件输出路径
     )
     calc.calculate()

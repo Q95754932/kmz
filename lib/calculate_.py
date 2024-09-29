@@ -201,6 +201,11 @@ class Calculator:
             * (2 - self.heading_overlap_ratio / 100 * 2)
             / self.camera_shoot_time
         )  # 保证航向重叠率不低于指定值的 建议最大飞行速度，单位 米/秒
+        print(f"建议最大飞行速度：{self.recmd_fight_speed:.2f} 米/秒")
+        if self.flight_speed > self.recmd_fight_speed:
+            print(f"当前飞行速度过快!!!\n")
+        else:
+            print(f"当前速度在建议范围内\n")
 
         self.waypoints_list = []  # 航点存储
         line_count = 0  # 记录有多少条长直航线
@@ -351,7 +356,6 @@ class Calculator:
             self.wgs84_waypoints,
         )
         kmz.create(self.output_path, True)
-        print(f"建议最大飞行速度：{self.recmd_fight_speed:.2f} 米/秒")
 
     def gcj02_to_wgs84(self, gcj02_coords):
         # 示例调用

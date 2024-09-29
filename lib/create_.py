@@ -37,7 +37,7 @@ class KmzCreator:
         return b"\n".join([line for line in pretty_xml.splitlines() if line.strip()])
 
     def create_kml(self):
-        print("kml file creating ...")
+        print("正在导出kml文件...")
         # 参数检查
         assert os.path.exists(self.kml_template_path), "模板文件不存在"
         assert 2 <= self.takeoff_height <= 1500, "起飞高度错误"
@@ -112,10 +112,10 @@ class KmzCreator:
         # 将格式化后的XML字符串写入文件
         with open(self.kml_output_path, "wb") as f:
             f.write(xml_string)
-        print("kml file created !")
+        print("kml文件已成功导出!")
 
     def create_wpml(self):
-        print("wpml file creating ...")
+        print("正在导出wpml文件...")
         # 参数检查
         assert os.path.exists(self.wpml_template_path), "模板文件不存在"
         assert 2 <= self.takeoff_height <= 1500, "起飞高度错误"
@@ -194,10 +194,10 @@ class KmzCreator:
         # 将格式化后的XML字符串写入文件
         with open(self.wpml_output_path, "wb") as f:
             f.write(xml_string)
-        print("wpml file created !")
+        print("wpml文件已成功导出!")
 
     def zip_file(self, kmz_output_path: str = "output/file.kmz"):
-        print(f"outputing file ...")
+        print(f"正在导出kmz文件...")
         # 检查文件
         assert os.path.exists(self.wpml_output_path) and os.path.exists(self.kml_output_path), "目标文件不存在"
         assert os.path.splitext(kmz_output_path)[-1] == ".kmz", "输出文件格式错误"
@@ -221,7 +221,7 @@ class KmzCreator:
                     arcname = os.path.relpath(file_path, start="")
                     # 将文件添加到ZIP文件中
                     zipf.write(file_path, arcname)
-        print(f"outputed file !")
+        print(f"kmz文件已成功导出!")
 
     def create(self, kmz_output_path: str = "output/file.kmz", remove_temp: bool = True):
         self.create_kml()
@@ -231,7 +231,7 @@ class KmzCreator:
             parent_folder = os.path.dirname(self.kml_output_path)
             if os.path.exists(parent_folder):
                 shutil.rmtree(parent_folder)
-            print(f"deleted temp!")
+            print(f"已删除缓存文件!")
 
 
 if __name__ == "__main__":
