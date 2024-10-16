@@ -7,10 +7,6 @@ np.set_printoptions(precision=15)  # 设置为 15 位小数显示
 class CoordinateTransformer:
     def __init__(self) -> None:
         pass
-        """
-        每次转换都会产生一定的偏移，需要尽量减少转换的次数
-        WGS84坐标和CGCS2000坐标几乎一致
-        """
 
     # 经度偏移量
     def lng_transform(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:

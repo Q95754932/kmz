@@ -10,10 +10,10 @@ import shutil
 class KmzCreator:
     def __init__(
         self,
-        takeoff_height: float,  # 起飞高度 单位 m
-        global_height: float,  # 飞行高度  单位 m
-        flight_speed: float,  # 飞行速度 单位 m/s
-        coordinates: List[Tuple[float, float]],  # 目标坐标系下的经纬坐标 单位 °
+        takeoff_height: float,  # 起飞高度---单位：米
+        global_height: float,  # 飞行高度---单位：米
+        flight_speed: float,  # 飞行速度---单位：米/秒
+        coordinates: List[Tuple[float, float]],  # 目标坐标系下的经纬坐标---单位:度
     ) -> None:
         super().__init__()
         self.kml_template_path = "template/kml_template.kml"  # 模板文件的路径
