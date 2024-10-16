@@ -13,7 +13,7 @@ class KmzCreator:
         takeoff_height: float,  # 起飞高度 单位 m
         global_height: float,  # 飞行高度  单位 m
         flight_speed: float,  # 飞行速度 单位 m/s
-        coordinates: List[Tuple[float, float]],  # WGS84坐标系下的经纬坐标 单位 °
+        coordinates: List[Tuple[float, float]],  # 目标坐标系下的经纬坐标 单位 °
     ) -> None:
         super().__init__()
         self.kml_template_path = "template/kml_template.kml"  # 模板文件的路径
@@ -244,7 +244,7 @@ if __name__ == "__main__":
         (112.944685090702, 28.1859187973407),
         (112.944583439, 28.1858859074767),
         (112.944531264732, 28.1860042320262),
-    ]  # 这里是给定的WGS84坐标系下的经纬度坐标
+    ]  # 这里是目标坐标系下的经纬度坐标
 
     kmz = KmzCreator(takeoff_height, global_height, flight_speed, coordinates)
     kmz.create("output/file.kmz", True)

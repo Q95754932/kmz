@@ -1,9 +1,8 @@
-import sys
-import os
-
-# 自动获取当前文件的所在路径，并添加文件夹到系统路径  __file__返回当前文件路径
-lib_directory = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(lib_directory)
+# import sys
+# import os
+# # 自动获取当前文件的所在路径，并添加文件夹到系统路径  __file__返回当前文件路径
+# lib_directory = os.path.dirname(os.path.abspath(__file__))
+# sys.path.append(lib_directory)
 
 from matplotlib.lines import Line2D
 from shapely.geometry import Polygon
@@ -11,17 +10,18 @@ from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, Point, MultiPoint, LineString
 from shapely.affinity import rotate
 import matplotlib.pyplot as plt
-from create_ import *
 import numpy as np
-from trans_ import *
 
 
 class Calculator:
+    """
+    该类实现的功能是使用给定的多边形顶点坐标(wgs84坐标系的坐标),
+    和一系列的飞行参数,进行航点规划,输出每个航点的坐标(wgs84坐标系的坐标)
+    """
+
     def __init__(
         self,
-        gcj02_coords=None,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
-        wgs84_coords=None,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
-        takeoff_height=12,  # 起飞高度---单位: 米
+        wgs84_coords,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
         global_height=15,  # 航线高度---单位: 米
         flight_speed=5,  # 飞行速度---单位: 米/秒
         angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
@@ -33,23 +33,12 @@ class Calculator:
         heading_overlap_ratio=15,  # 单侧航向重叠率---单位: 百分比
         start_dir="right",  # 起始飞行点---是在航向的右边还是左边，默认右边
         camera_shoot_time=1,  # 相机拍照的间隔时间---单位: 秒
-        output_path="output/file.kmz",  # 文件输出路径
+        view_size=(20, 8),  # 预览图大小---单位：英尺
     ):
         #############################################################
         ## 定义参数
         #############################################################
-
-        # 进行坐标转换
-        assert gcj02_coords is not None or wgs84_coords is not None, "请输入坐标"
-        if wgs84_coords is not None:
-            self.wgs84_coords = wgs84_coords
-        elif gcj02_coords is not None:
-            self.wgs84_coords = self.gcj02_to_wgs84(gcj02_coords)
-
-        self.takeoff_height = takeoff_height
-        self.global_height = global_height
-        self.flight_speed = flight_speed
-
+        self.wgs84_coords = wgs84_coords
         if angle is not None:
             self.angle = angle
         else:
@@ -62,6 +51,8 @@ class Calculator:
             # 确保角度为正数，并在 [0, 360) 范围内
             self.angle = angle_deg % 360
 
+        self.global_height = global_height
+        self.flight_speed = flight_speed
         self.heading_offset = heading_offset
         self.camera_HFOV = camera_HFOV
         self.camera_VFOV = camera_VFOV
@@ -69,7 +60,7 @@ class Calculator:
         self.heading_overlap_ratio = heading_overlap_ratio
         self.start_dir = start_dir
         self.camera_shoot_time = camera_shoot_time
-        self.output_path = output_path
+        self.view_size = view_size
 
     #############################################################
     ## 定义可视化函数
@@ -89,7 +80,7 @@ class Calculator:
         title = "WGS84 Coordinate"
 
         # 创建一个图形对象
-        fig, axs = plt.subplots(1, 1, figsize=(24, 10))
+        fig, axs = plt.subplots(1, 1, figsize=self.view_size)
         # 绘制航线
         x_coords, y_coords = zip(*way_points)  # 拆分为 x 和 y 坐标
         u = np.diff(x_coords)  # x方向的变化量
@@ -340,31 +331,13 @@ class Calculator:
     ## 转换成WGS84坐标
     #############################################################
 
-    def convert_to_WGS84(self):
+    def convert_to_wgs84(self):
         mct_to_wgs84 = Transformer.from_crs(self.mercator, CRS.from_epsg(4326), always_xy=True)
         self.wgs84_waypoints = [(mct_to_wgs84.transform(x, y)) for x, y in self.re_points]
 
     #############################################################
-    ## 生成kmz文件
+    ## 总流程调用
     #############################################################
-
-    def generate_kmz(self):
-        kmz = KmzCreator(
-            self.takeoff_height,
-            self.global_height,
-            self.flight_speed,
-            self.wgs84_waypoints,
-        )
-        kmz.create(self.output_path, True)
-
-    def gcj02_to_wgs84(self, gcj02_coords):
-        # 示例调用
-        trans = CoordinateTransformer()
-        # 示例输入：多个坐标点，合并为 shape=(n, 2) 的数组
-        coords_gcj = np.array(gcj02_coords, dtype=np.float64)
-        # GCJ-02 转 WGS-84
-        coords_wgs = trans.gcj02_to_wgs84(coords_gcj)
-        return coords_wgs.tolist()
 
     def calculate(self):
         self.calculate_centroid()
@@ -374,21 +347,20 @@ class Calculator:
         self.calculate_waypoints_in_rectangle()
         self.adjust_waypoints_x_coordinates()
         self.rotate_waypoints_back()
-        self.convert_to_WGS84()
+        self.convert_to_wgs84()
         self.draw()
-        self.generate_kmz()
+        return self.wgs84_waypoints
 
 
 if __name__ == "__main__":
     # 调用示例
     calc = Calculator(
-        gcj02_coords=[
-            (112.950043079, 28.182389264),
-            (112.950144979, 28.182422342),
-            (112.950072576, 28.182565393),
-            (112.949992129, 28.182539403),
+        wgs84_coords=[
+            [112.950043079, 28.182389264],
+            [112.950144979, 28.182422342],
+            [112.950072576, 28.182565393],
+            [112.949992129, 28.182539403],
         ],  # 坐标
-        takeoff_height=12,  # 起飞高度---单位: 米
         global_height=12,  # 航线高度---单位: 米
         flight_speed=5,  # 飞行速度---单位: 米/秒
         angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
@@ -400,6 +372,7 @@ if __name__ == "__main__":
         heading_overlap_ratio=30,  # 单侧航向重叠率---单位: 百分比
         start_dir="right",  # 起始飞行点---是在航向的右边还是左边，默认右边
         camera_shoot_time=1,  # 相机拍照的间隔时间---单位: 秒
-        output_path="output/file.kmz",  # 文件输出路径
+        view_size=(12, 6),  # 预览图大小---单位：英尺
     )
-    calc.calculate()
+    waypoint_coords_wgs84 = calc.calculate()
+    print(waypoint_coords_wgs84)
