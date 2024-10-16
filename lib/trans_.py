@@ -9,6 +9,7 @@ class CoordinateTransformer:
         pass
         """
         每次转换都会产生一定的偏移，需要尽量减少转换的次数
+        WGS84坐标和CGCS2000坐标几乎一致
         """
 
     # 经度偏移量
@@ -222,44 +223,15 @@ if __name__ == "__main__":
     # 示例调用
     trans = CoordinateTransformer()
     # 示例输入：多个坐标点，合并为 shape=(n, 2) 的数组
-    coords_gcj = np.array(
+    coords_ = np.array(
         [
-            [112.950043079, 28.182389264],
-            [112.950144979, 28.182422342],
-            [112.950072576, 28.182565393],
-        ],
-        dtype=np.float64,
-    )
-    # GCJ-02 转 WGS-84
-    coords_wgs = trans.gcj02_to_wgs84(coords_gcj)
-    print(f"WGS-84坐标系下的经纬度: \n{coords_wgs}")
-    # 示例输入：WGS-84 坐标点，合并为 shape=(n, 2) 的数组
-    coords_wgs = np.array(
-        [
-            [112.950043079, 28.182389264],
-            [112.950144979, 28.182422342],
-            [112.950072576, 28.182565393],
-        ],
-        dtype=np.float64,
-    )
-    # WGS-84 转 GCJ-02
-    coords_gcj2 = trans.wgs84_to_gcj02(coords_wgs)
-    print(f"GCJ-02坐标系下的经纬度: \n{coords_gcj2}")
-
-    coords_wgs = np.array(
-        [
-            [112.950043079, 28.182389264],
-            [112.950144979, 28.182422342],
-            [112.950072576, 28.182565393],
-            [112.949992129, 28.182539403],
+            [112.949926251809, 28.182879919921],
+            [112.950520361106, 28.1829402074804],
+            [112.950682634751, 28.1821210030304],
+            [112.950186426083, 28.1820559865355],
         ],
         dtype=np.float64,
     )
 
-    # WGS-84 转 CGCS2000
-    coords_cgcs = trans.wgs84_to_cgcs2000(coords_wgs)
-    print(f"CGCS2000坐标系下的经纬度: \n{coords_cgcs}")
-
-    # CGCS2000 转 WGS-84
-    coords_wgs2 = trans.cgcs2000_to_wgs84(coords_cgcs)
-    print(f"WGS-84坐标系下的经纬度: \n{coords_wgs2}")
+    coords = trans.gcj02_to_wgs84(coords_)
+    print(f"84坐标系下的经纬度: \n{coords}")
