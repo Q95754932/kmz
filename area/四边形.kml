@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+<Document>
+<Style id="2356389995">
+  <LineStyle>
+    <color>ff0000ff</color>
+    <width>1</width>
+  </LineStyle>
+  <PolyStyle>
+    <color>40ff0000</color>
+  </PolyStyle>
+</Style>
+<Placemark>
+  <name>四边形</name>
+  <description/>
+  <styleUrl>#2356389995</styleUrl>
+  <Polygon>
+    <tessellate>1</tessellate>
+    <outerBoundaryIs>
+      <LinearRing>
+        <coordinates>
+          112.944666091529,28.1851235963937,39.2959949547207
+          112.945041600791,28.1851718761559,37.4190828603533
+          112.94482702407,28.1865451671716,37.8556548676754
+          112.944416646091,28.1863681413766,42.2582289931708
+          112.944666091529,28.1851235963937,39.2959949547207
+        </coordinates>
+      </LinearRing>
+    </outerBoundaryIs>
+  </Polygon>
+</Placemark>
+</Document>
+</kml>
