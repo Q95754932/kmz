@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     takeoff_height = 15  # 起飞高度---单位: 米
     global_height = 15  # 航线高度---单位: 米
-    flight_speed = 3  # 飞行速度---单位: 米/秒
+    flight_speed = None  # 飞行速度---单位: 米/秒 取值为None时默认最大速度
     angle = None  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
     # 取值为None时自动按照第一点到第二点的方向
     heading_offset = 0  # 航向偏移---正数向外,负数向内---单位 :米
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         camera_shoot_time=camera_shoot_time,
         view_size=view_size,
     )
-    waypoint_coords_wgs84 = calc.calculate()
+    waypoint_coords_wgs84, flight_speed = calc.calculate()
 
     #############################################################
     ## 将输出WGS84坐标转换至目标坐标(WGS84、CGCS2000、GCJ02)

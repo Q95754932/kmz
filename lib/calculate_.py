@@ -23,7 +23,7 @@ class Calculator:
         self,
         wgs84_coords,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
         global_height=15,  # 航线高度---单位: 米
-        flight_speed=5,  # 飞行速度---单位: 米/秒
+        flight_speed=None,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
         angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
@@ -192,11 +192,20 @@ class Calculator:
             * (2 - self.heading_overlap_ratio / 100 * 2)
             / self.camera_shoot_time
         )  # 保证航向重叠率不低于指定值的 建议最大飞行速度，单位 米/秒
-        print(f"建议最大飞行速度：{self.recmd_fight_speed:.2f} 米/秒")
-        if self.flight_speed > self.recmd_fight_speed:
-            print(f"当前飞行速度过快!!!\n")
+        if self.flight_speed is not None:
+            if self.flight_speed > self.recmd_fight_speed:
+                print(
+                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒\n"
+                )
+            else:
+                print(
+                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒, 请注意速度超出上限！\n"
+                )
         else:
-            print(f"当前速度在建议范围内\n")
+            self.flight_speed = 15 if self.recmd_fight_speed >= 15 else self.recmd_fight_speed
+            print(
+                f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 飞行速度调整为：{self.flight_speed:.2f} 米/秒\n"
+            )
 
         self.waypoints_list = []  # 航点存储
         line_count = 0  # 记录有多少条长直航线
@@ -349,7 +358,7 @@ class Calculator:
         self.rotate_waypoints_back()
         self.convert_to_wgs84()
         self.draw()
-        return self.wgs84_waypoints
+        return self.wgs84_waypoints, self.flight_speed
 
 
 if __name__ == "__main__":
@@ -362,7 +371,7 @@ if __name__ == "__main__":
             [112.949992129, 28.182539403],
         ],  # 坐标
         global_height=12,  # 航线高度---单位: 米
-        flight_speed=5,  # 飞行速度---单位: 米/秒
+        flight_speed=None,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
         angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
