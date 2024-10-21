@@ -42,7 +42,7 @@ class KmzCreator:
         assert os.path.exists(self.kml_template_path), "模板文件不存在"
         assert 2 <= self.takeoff_height <= 1500, "起飞高度错误"
         assert -1500 <= self.global_height <= 1500, "飞行高度错误"
-        assert 1 <= self.flight_speed <= 15, "飞行速度错误"
+        assert 0 < self.flight_speed <= 15, "飞行速度错误"
         assert len(self.coordinates) >= 2, "点位坐标错误"
         # 点位参数
         point_param = {

@@ -24,17 +24,33 @@ class Calculator:
         wgs84_coords,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
         global_height=15,  # 航线高度---单位: 米
         flight_speed=None,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
-        angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+        angle=None,  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
-        camera_HFOV=52.8,  # 相机的水平FOV---单位: 度
-        camera_VFOV=40.9,  # 相机的竖直FOV---单位: 度
+        camera_HFOV=52.8,  # 相机水平FOV---单位: 度
+        camera_VFOV=40.9,  # 相机竖直FOV---单位: 度
         side_overlap_ratio=15,  # 单侧旁向重叠率---单位: 百分比
         heading_overlap_ratio=15,  # 单侧航向重叠率---单位: 百分比
         start_dir="right",  # 起始飞行点---是在航向的右边还是左边，默认右边
-        camera_shoot_time=1,  # 相机拍照的间隔时间---单位: 秒
+        camera_shoot_time=1,  # 相机拍照间隔时间---单位: 秒
         view_size=(20, 8),  # 预览图大小---单位：英尺
     ):
+        #############################################################
+        ## 检查参数
+        #############################################################
+
+        assert len(wgs84_coords) >= 3, "输入边界点过少"
+        assert -1500 <= global_height <= 1500, "飞行高度错误"
+        assert flight_speed is None or 0 < flight_speed <= 15, "飞行速度错误"
+        assert angle is None or 0 <= angle < 360, "航线方向角度错误"
+        assert 0 < camera_HFOV < 180, "相机的水平FOV错误"
+        assert 0 < camera_VFOV < 180, "相机的竖直FOV错误"
+        assert 0 <= side_overlap_ratio < 100, "单侧旁向重叠率错误"
+        assert 0 <= heading_overlap_ratio < 100, "单侧航向重叠率错误"
+        assert start_dir == "right" or start_dir == "left", "起始飞行点错误"
+        assert camera_shoot_time >= 1, "相机拍照间隔时间错误"
+        assert view_size[0] > 0 and view_size[1] > 0, "预览图大小错误"
+
         #############################################################
         ## 定义参数
         #############################################################
@@ -43,7 +59,10 @@ class Calculator:
             self.angle = angle
         else:
             # 计算向量
-            vector = np.array(self.wgs84_coords[1]) - np.array(self.wgs84_coords[0])
+            if start_dir == "right":
+                vector = np.array(self.wgs84_coords[1]) - np.array(self.wgs84_coords[0])
+            else:
+                vector = np.array(self.wgs84_coords[-2]) - np.array(self.wgs84_coords[-1])
             # 计算夹角（弧度）
             angle_rad = np.arctan2(vector[1], vector[0])
             # 转换为度数
@@ -195,11 +214,11 @@ class Calculator:
         if self.flight_speed is not None:
             if self.flight_speed > self.recmd_fight_speed:
                 print(
-                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒\n"
+                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒, 请注意速度超出上限！\n"
                 )
             else:
                 print(
-                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒, 请注意速度超出上限！\n"
+                    f"建议飞行速度上限：{self.recmd_fight_speed:.2f} 米/秒, 当前飞行速度：{self.flight_speed:.2f} 米/秒\n"
                 )
         else:
             self.flight_speed = 15 if self.recmd_fight_speed >= 15 else self.recmd_fight_speed
@@ -365,22 +384,22 @@ if __name__ == "__main__":
     # 调用示例
     calc = Calculator(
         wgs84_coords=[
-            [112.950043079, 28.182389264],
-            [112.950144979, 28.182422342],
-            [112.950072576, 28.182565393],
-            [112.949992129, 28.182539403],
+            [112.944666091529, 28.1851235963937],
+            [112.945041600791, 28.1851718761559],
+            [112.94482702407, 28.1865451671716],
+            [112.944416646091, 28.1863681413766],
         ],  # 坐标
-        global_height=12,  # 航线高度---单位: 米
-        flight_speed=None,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
-        angle=None,  # 航线角度方向---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+        global_height=20,  # 航线高度---单位: 米
+        flight_speed=3,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
+        angle=None,  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
-        camera_HFOV=52.8,  # 相机的水平FOV---单位: 度
-        camera_VFOV=40.9,  # 相机的竖直FOV---单位: 度
-        side_overlap_ratio=30,  # 单侧旁向重叠率---单位: 百分比
-        heading_overlap_ratio=30,  # 单侧航向重叠率---单位: 百分比
+        camera_HFOV=52.8,  # 相机水平FOV---单位: 度
+        camera_VFOV=40.9,  # 相机竖直FOV---单位: 度
+        side_overlap_ratio=15,  # 单侧旁向重叠率---单位: 百分比
+        heading_overlap_ratio=15,  # 单侧航向重叠率---单位: 百分比
         start_dir="right",  # 起始飞行点---是在航向的右边还是左边，默认右边
-        camera_shoot_time=1,  # 相机拍照的间隔时间---单位: 秒
+        camera_shoot_time=1,  # 相机拍照间隔时间---单位: 秒
         view_size=(12, 6),  # 预览图大小---单位：英尺
     )
     waypoint_coords_wgs84 = calc.calculate()
