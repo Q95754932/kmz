@@ -24,7 +24,7 @@ class Calculator:
         wgs84_coords,  # 边界点列表---经度纬度，需要按连线顺序输入，不能有交叉---单位: 度
         global_height=15,  # 航线高度---单位: 米
         flight_speed=None,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
-        angle=None,  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+        angle=(0, 1),  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
         camera_HFOV=52.8,  # 相机水平FOV---单位: 度
@@ -42,7 +42,9 @@ class Calculator:
         assert len(wgs84_coords) >= 3, "输入边界点过少"
         assert -1500 <= global_height <= 1500, "飞行高度错误"
         assert flight_speed is None or 0 < flight_speed <= 15, "飞行速度错误"
-        assert angle is None or 0 <= angle < 360, "航线方向角度错误"
+        assert (
+            isinstance(angle, list) or isinstance(angle, tuple) or isinstance(angle, int) or isinstance(angle, float)
+        ), "航线方向参数错误"
         assert 0 < camera_HFOV < 180, "相机的水平FOV错误"
         assert 0 < camera_VFOV < 180, "相机的竖直FOV错误"
         assert 0 <= side_overlap_ratio < 100, "单侧旁向重叠率错误"
@@ -55,14 +57,23 @@ class Calculator:
         ## 定义参数
         #############################################################
         self.wgs84_coords = wgs84_coords
-        if angle is not None:
+        if isinstance(angle, int) or isinstance(angle, float):
+            assert 0 <= angle < 360, "航线方向角度错误"
             self.angle = angle
         else:
-            # 计算向量
-            if start_dir == "right":
-                vector = np.array(self.wgs84_coords[1]) - np.array(self.wgs84_coords[0])
+            assert len(angle) == 2, "航线方向列表长度错误"
+            if isinstance(angle[0], int) and isinstance(angle[1], int):
+                assert 0 <= angle[0] < len(self.wgs84_coords) and 0 <= angle[1] < len(
+                    self.wgs84_coords
+                ), "航线方向列表索引错误"
+                assert angle[0] != angle[1], "航线方向列表索引错误"
+                start = self.wgs84_coords[angle[0]]
+                end = self.wgs84_coords[angle[1]]
+                vector = np.array(end) - np.array(start)
             else:
-                vector = np.array(self.wgs84_coords[-2]) - np.array(self.wgs84_coords[-1])
+                assert len(angle[0]) == 2 and len(angle[1]) == 2, "航线方向列表点位错误"
+                assert angle[0] != angle[1], "航线方向列表索引错误"
+                vector = np.array(angle[1]) - np.array(angle[0])
             # 计算夹角（弧度）
             angle_rad = np.arctan2(vector[1], vector[0])
             # 转换为度数
@@ -391,7 +402,7 @@ if __name__ == "__main__":
         ],  # 坐标
         global_height=20,  # 航线高度---单位: 米
         flight_speed=3,  # 飞行速度---单位: 米/秒  取值为None时默认最大速度
-        angle=None,  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
+        angle=(0, 1),  # 航线方向角度---x轴正方向为0度,逆时针增加,范围从0-360---单位: 度
         # 取值为None时自动按照第一点到第二点的方向
         heading_offset=0,  # 航向偏移---正数向外,负数向内---单位 :米
         camera_HFOV=52.8,  # 相机水平FOV---单位: 度
